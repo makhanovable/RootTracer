@@ -3,6 +3,8 @@ package com.takealookonit.roottracer.backend;
 import android.os.AsyncTask;
 import android.util.Log;
 
+import com.takealookonit.roottracer.LoginAuthActivity;
+
 import java.io.BufferedWriter;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -17,6 +19,12 @@ import java.net.URLEncoder;
  */
 
 public class HttpAddUser extends AsyncTask<String, Void, String> {
+
+    private LoginAuthActivity activity;
+
+    public HttpAddUser(LoginAuthActivity activity) {
+        this.activity = activity;
+    }
 
     @Override
     protected String doInBackground(String... args) {
@@ -47,6 +55,10 @@ public class HttpAddUser extends AsyncTask<String, Void, String> {
 
     @Override
     protected void onPostExecute(String result) {
+        if (result.equals("server - HttpAddUser successful")) {
+            activity.signUpResponse(1);
+        } else
+            activity.signUpResponse(0);
         Log.d("mylog", result);
     }
 
