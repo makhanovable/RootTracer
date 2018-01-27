@@ -21,11 +21,11 @@ import android.os.IBinder;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.NotificationCompat;
 
-import com.google.android.gms.maps.model.LatLng;
 import com.takealookonit.roottracer.backend.HttpAddPoint;
+import com.takealookonit.roottracer.database.EmailDB;
+import com.takealookonit.roottracer.database.LastDB;
 
 import java.util.ArrayList;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Created by Makhanov Madiyar
@@ -40,18 +40,26 @@ public class TrackerService extends Service {
     private NotificationManager notificationManager;
 
     public static int NOTIFICATION_ID = 26529;
-    String email;
+    String email;int route;
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         EmailDB database = new EmailDB(this);
+        LastDB lastDB = new LastDB(this);
         SQLiteDatabase sqLiteDatabase = database.getWritableDatabase();
+        SQLiteDatabase liteDatabase = lastDB.getWritableDatabase();
         Cursor cursor = sqLiteDatabase.rawQuery("SELECT * FROM ema ", null);
         int a = cursor.getColumnIndex("email");
         while (cursor.moveToNext()) {
             email = cursor.getString(a);
         }
         cursor.close();
+        Cursor c = liteDatabase.rawQuery("SELECT * FROM lastroute", null);
+        int aa = c.getColumnIndex("route");
+        while (c.moveToNext()) {
+            route = c.getInt(aa);
+        }
+        c.close();
         startTrack();
         return super.onStartCommand(intent, flags, startId);
     }
@@ -75,13 +83,13 @@ public class TrackerService extends Service {
 
         builder.setContentIntent(resultPendingIntent);
         notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-        builder.setContentText("developed by hanz");
+//        builder.setContentText("developed by hanz");
         notificationManager.notify(NOTIFICATION_ID, builder.build());
+        track();
     }
 
     private long startTime = 0;
     private long endTime = 0;
-    private ArrayList<Long> time = new ArrayList<>();
     public void track() {
         LocationManager locationManager = (LocationManager) this.getSystemService(LOCATION_SERVICE);
         LocationListener locationListener = new LocationListener() {
@@ -90,7 +98,6 @@ public class TrackerService extends Service {
                 endTime = System.currentTimeMillis() - startTime;
                 changed(location);
                 startTime = System.currentTimeMillis();
-                time.add(endTime);
             }
 
             @Override
@@ -126,7 +133,7 @@ public class TrackerService extends Service {
     private void changed(Location location) {
         HttpAddPoint httpAddPoint = new HttpAddPoint(null);
         httpAddPoint.execute(email, location.getLatitude() + "",
-                location.getLongitude() + "", endTime + "", "1236");//TODO route
+                location.getLongitude() + "", endTime + "", route + "");//TODO route
     }
 
     @Override

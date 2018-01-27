@@ -15,6 +15,7 @@ import com.takealookonit.roottracer.backend.GetUsers;
 import com.takealookonit.roottracer.backend.HttpAddUser;
 import com.takealookonit.roottracer.backend.models.User;
 import com.takealookonit.roottracer.backend.models.UserWrapper;
+import com.takealookonit.roottracer.database.EmailDB;
 
 import java.util.List;
 
@@ -38,6 +39,7 @@ public class LoginAuthActivity extends AppCompatActivity implements GetUsers.Get
             Intent intent = new Intent(this, MapsActivity.class);
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             startActivity(intent); // TODO anim
+            overridePendingTransition(R.anim.in, R.anim.out);
         } else {
             setContentView(R.layout.activity_login_auth);
             mLogin = findViewById(R.id.login_edit_text);
