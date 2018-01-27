@@ -1,6 +1,9 @@
 package com.takealookonit.roottracer;
 
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
@@ -31,12 +34,19 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.maps.model.RoundCap;
+import com.takealookonit.roottracer.backend.GetPoints;
+import com.takealookonit.roottracer.backend.HttpAddPoint;
+import com.takealookonit.roottracer.backend.models.Point;
+import com.takealookonit.roottracer.backend.models.PointWrapper;
+import com.takealookonit.roottracer.database.EmailDB;
+import com.takealookonit.roottracer.database.LastDB;
 
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
+public class MapsActivity extends FragmentActivity implements OnMapReadyCallback,
+        GetPoints.GetPointsInterface {
 
     private GoogleMap mMap;
     private TextView textView;
@@ -54,16 +64,33 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private Button startStopButton;
     boolean start = true;
+    SharedPreferences sharedPreferences;
+
+    String email;
+    int route;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
+
+        sharedPreferences = getPreferences(1212);
+        route = sharedPreferences.getInt("route", 0);
+        route++;
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
         loadRoutes();
+
+        EmailDB database = new EmailDB(this);
+        SQLiteDatabase sqLiteDatabase = database.getWritableDatabase();
+        Cursor cursor = sqLiteDatabase.rawQuery("SELECT * FROM ema ", null);
+        int a = cursor.getColumnIndex("email");
+        while (cursor.moveToNext()) {
+            email = cursor.getString(a);
+        }
+        cursor.close();
 
         startStopButton = findViewById(R.id.start_stop_button);
         startTime = System.nanoTime();
@@ -72,17 +99,29 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private void loadRoutes() {
+        GetPoints getPoints = new GetPoints(this);
+        getPoints.getPointsWrapper();
+    }
+
+    @Override
+    protected void onDestroy() {
+        sharedPreferences = getPreferences(1212);
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putInt("route", route);
+        editor.apply();
+        super.onDestroy();
     }
 
     //Add new coordinates if location changed
     private void changed(Location location) {
         LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
-        if (lines.size()==0){
+
+        if (lines.size() == 0) {
             addLatlng(latLng);
-        }else {
+        } else {
             double distance = calculateDistance(latLng, lines.get(lines.size() - 1));
-            System.out.println("Distance is: "+ distance);
-            if (distance>60){
+            System.out.println("Distance is: " + distance);
+            if (distance > 60) {
                 this.distance.add(distance);
                 addLatlng(latLng);
             }
@@ -92,24 +131,28 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         drawShapes();
     }
 
+
     private void addLatlng(LatLng latLng) {
         lines.add(latLng);
-        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng,17));
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng,17));
+        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 17));
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 17));
         endTime = System.nanoTime() - startTime;
         startTime = System.nanoTime();
         time.add(endTime);
 
+        HttpAddPoint httpAddPoint = new HttpAddPoint(this); // TODO sent to server
+        httpAddPoint.execute(email, latLng.latitude + "", latLng.longitude + "", endTime + "",
+                route + "");
     }
 
-    private void averageVelocity(){
+    private void averageVelocity() {
         double sum = 0;
-        for (int i = 0;i<distance.size();i++){
-            long t = time.get(i+1) - time.get(i);
-            double v = distance.get(i) / (t/1000);
+        for (int i = 0; i < distance.size(); i++) {
+            long t = time.get(i + 1) - time.get(i);
+            double v = distance.get(i) / (t / 1000);
             sum += v;
         }
-        textView.setText("Average velocity is: "+(sum/distance.size()));
+        textView.setText("Average velocity is: " + (sum / distance.size()));
     }
 
     //Drawing  lines circles etc on map
@@ -117,35 +160,35 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         PolylineOptions path = new PolylineOptions();
 
-        for (LatLng latLng: lines){
+        for (LatLng latLng : lines) {
             path.add(latLng);
 
             CircleOptions circleOptions = new CircleOptions();
             circleOptions.center(latLng).radius(20)
-                    .fillColor(Color.argb(255,255,0,0));
+                    .fillColor(Color.argb(255, 255, 60, 60));
             Circle circle = mMap.addCircle(circleOptions);
 
         }
         Polyline polyline = mMap.addPolyline(path);
         stylePolyLine(polyline);
 
-        if (lines.size()>1){
+        if (lines.size() > 1) {
             Matrix matrix = new Matrix();
-            int i = lines.size()-1;
+            int i = lines.size() - 1;
             double rotDegree = Math.toDegrees(
-                    Math.atan2(lines.get(i).latitude-lines.get(i-1).latitude,
-                            lines.get(i).longitude-lines.get(i-1).longitude));
+                    Math.atan2(lines.get(i).latitude - lines.get(i - 1).latitude,
+                            lines.get(i).longitude - lines.get(i - 1).longitude));
             matrix.postRotate((float) rotDegree);
-            Bitmap arrowBit = BitmapFactory.decodeResource(getResources(),R.drawable.ic_keyboard_arrow_up_black_18dp_1x);
-            Bitmap arr = Bitmap.createBitmap(arrowBit,0,0,24,24,matrix,true);
+            Bitmap arrowBit = BitmapFactory.decodeResource(getResources(), R.drawable.ic_keyboard_arrow_up_black_18dp_1x);
+            Bitmap arr = Bitmap.createBitmap(arrowBit, 0, 0, 24, 24, matrix, true);
             Marker marker = mMap.addMarker(new MarkerOptions().position(lines.get(i)).icon(BitmapDescriptorFactory.fromBitmap(arr)));
 
         }
     }
 
-    private void stylePolyLine(Polyline polyline){
+    private void stylePolyLine(Polyline polyline) {
         String type = "";
-        if (polyline.getTag()!=null){
+        if (polyline.getTag() != null) {
             type = polyline.getTag().toString();
         }
         polyline.setEndCap(new RoundCap());
@@ -160,21 +203,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     public void treckingOnOff(View view) {
-        if(start){
+        if (start) {
             setListener();
+            route++;
             startStopButton.setText("Stop");
             start = false;
-        }else {
+        } else {
             start = true;
             startStopButton.setText("Start");
             locationManager.removeUpdates(locationListener);
-            Toast.makeText(this, "Size of dist:"+distance.size()+" Size of time:"+time.size(),Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Size of dist:" + distance.size() + " Size of time:" + time.size(), Toast.LENGTH_SHORT).show();
         }
     }
 
     private void setListener() {
         locationManager = (LocationManager) this.getSystemService(LOCATION_SERVICE);
-        Toast.makeText(this, "Checking",Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Checking", Toast.LENGTH_SHORT).show();
         locationListener = new LocationListener() {
             @Override
             public void onLocationChanged(Location location) {// add time
@@ -204,7 +248,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     //Calculating Distance
-    private double calculateDistance(LatLng startPos, LatLng endPos){
+    private double calculateDistance(LatLng startPos, LatLng endPos) {
         double radius = 3958.75;
         double lat1 = startPos.latitude;
         double lat2 = endPos.latitude;
@@ -212,14 +256,28 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         double lon2 = endPos.longitude;
         double dLat = Math.toRadians(lat2 - lat1);
         double dLon = Math.toRadians(lon2 - lon1);
-        double a = Math.sin(dLat/2) * Math.sin(dLat/2)
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
                 + Math.cos(Math.toRadians(lat1))
-                * Math.cos(Math.toRadians(lat2)) * Math.sin(dLon/2)
-                * Math.sin(dLon/2);
-        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                * Math.cos(Math.toRadians(lat2)) * Math.sin(dLon / 2)
+                * Math.sin(dLon / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         double valueResult = radius * c;
 
         int meterConversion = 1609;
         return valueResult * meterConversion;
+    }
+
+    @Override
+    public void getPointsWrapper(PointWrapper pointWrapper) {
+        // TODO
+        List<Point> points = pointWrapper.getPoints();
+        List<LatLng> latLngs = new ArrayList<>();
+        for (int i = 0; i < points.size(); i++) {
+            if (points.get(i).getEmail().equals(email)) {
+                latLngs.add(new LatLng(Double.parseDouble(points.get(i).getLat()),
+                        Double.parseDouble(points.get(i).getLot())));
+            }
+        }
+
     }
 }

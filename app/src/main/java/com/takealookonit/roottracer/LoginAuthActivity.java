@@ -1,6 +1,7 @@
 package com.takealookonit.roottracer;
 
 import android.annotation.SuppressLint;
+import android.app.ProgressDialog;
 import android.content.ContentValues;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -10,7 +11,10 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
+import android.widget.ImageView;
+import android.widget.Toast;
 
+import com.squareup.picasso.Picasso;
 import com.takealookonit.roottracer.backend.GetUsers;
 import com.takealookonit.roottracer.backend.HttpAddUser;
 import com.takealookonit.roottracer.backend.models.User;
@@ -42,15 +46,24 @@ public class LoginAuthActivity extends AppCompatActivity implements GetUsers.Get
             overridePendingTransition(R.anim.in, R.anim.out);
         } else {
             setContentView(R.layout.activity_login_auth);
+            ImageView imageView= findViewById(R.id.image);
+            Picasso.with(this)
+                    .load(R.drawable.back)
+                    .fit()
+                    .centerCrop()
+                    .into(imageView);
             mLogin = findViewById(R.id.login_edit_text);
             mPassword = findViewById(R.id.password_edit_text);
         }
     }
 
+    ProgressDialog progressDialog;
     //Sign in clicked
     public void signIn(View view) {
         GetUsers getUsers = new GetUsers(this);
         getUsers.getUserWrapper();
+        progressDialog = ProgressDialog.show(this,"Loading",
+                "Please wait...", true);
 
     }
 
@@ -62,6 +75,8 @@ public class LoginAuthActivity extends AppCompatActivity implements GetUsers.Get
         String password = mPassword.getText().toString();
         HttpAddUser addUserDatabase = new HttpAddUser(this);
         addUserDatabase.execute(email, password);
+        progressDialog = ProgressDialog.show(this,"Loading",
+                "Please wait...", true);
     }
 
     @SuppressLint("WrongConstant")
@@ -78,10 +93,13 @@ public class LoginAuthActivity extends AppCompatActivity implements GetUsers.Get
             sqLiteDatabase.insert("ema", null, values);
             Intent intent = new Intent(this, MapsActivity.class);
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            startActivity(intent); //TODO anim
+            startActivity(intent);
+            overridePendingTransition(R.anim.in, R.anim.out);//TODO anim
         } else {
             Log.d("mylog", "sign up error");
+            Toast.makeText(this, "error", Toast.LENGTH_SHORT).show();
         }
+        progressDialog.dismiss();
     }
 
     @SuppressLint("WrongConstant")
@@ -89,6 +107,7 @@ public class LoginAuthActivity extends AppCompatActivity implements GetUsers.Get
     public void getUserWrapper(UserWrapper userWrapper) {
         String email = mLogin.getText().toString();
         String password = mPassword.getText().toString();
+        boolean no = true;
         if (userWrapper != null) {
             List<User> users = userWrapper.getUsers();
             User user = null;
@@ -100,6 +119,7 @@ public class LoginAuthActivity extends AppCompatActivity implements GetUsers.Get
                     SharedPreferences.Editor editor = sharedPreferences.edit();
                     editor.putBoolean("isAuth", true);
                     editor.apply();
+                    no = false;
                     EmailDB database = new EmailDB(this);
                     SQLiteDatabase sqLiteDatabase = database.getWritableDatabase();
                     ContentValues values = new ContentValues();
@@ -107,11 +127,15 @@ public class LoginAuthActivity extends AppCompatActivity implements GetUsers.Get
                     sqLiteDatabase.insert("ema", null, values);
                     Intent intent = new Intent(this, MapsActivity.class);
                     intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                    startActivity(intent); // TODO anim
+                    startActivity(intent);
+                    overridePendingTransition(R.anim.in, R.anim.out);// TODO anim
                     break;
                 }
             }
+            if(no)
+                Toast.makeText(this, "error", Toast.LENGTH_SHORT).show();
         }
+        progressDialog.dismiss();
     }
 
 }
