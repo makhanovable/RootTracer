@@ -1,5 +1,6 @@
 package com.takealookonit.roottracer.backend;
 
+import com.takealookonit.roottracer.backend.models.PointWrapper;
 import com.takealookonit.roottracer.backend.models.UserWrapper;
 
 import retrofit2.Call;
@@ -14,5 +15,8 @@ interface API {
 
     @GET("getUsers.php")
     Call<UserWrapper> getUsers();
+
+    @GET("getPoints.php")
+    Call<PointWrapper> getPoints();
 
 }
