@@ -93,6 +93,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
                 mMap.setMyLocationEnabled(true);
                 mMap.getUiSettings().setMyLocationButtonEnabled(true);
+
             }else {
                 getLocationPermission();
             }
