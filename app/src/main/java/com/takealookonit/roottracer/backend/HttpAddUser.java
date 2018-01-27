@@ -21,8 +21,8 @@ public class HttpAddUser extends AsyncTask<String, Void, String> {
     @Override
     protected String doInBackground(String... args) {
         try {
-            String id = args[0];
-            String coin = args[1];
+            String email = args[0];
+            String password = args[1];
             URL url = new URL("https://sdu.000webhostapp.com/addUser.php");
             HttpURLConnection httpURLConnection = (HttpURLConnection) url.openConnection();
             httpURLConnection.setRequestMethod("POST");
@@ -30,8 +30,8 @@ public class HttpAddUser extends AsyncTask<String, Void, String> {
             OutputStream outputStream = httpURLConnection.getOutputStream();
             BufferedWriter bufferedWriter =
                     new BufferedWriter(new OutputStreamWriter(outputStream, "UTF-8"));
-            String data = URLEncoder.encode("email", "UTF-8") + "=" + URLEncoder.encode(id, "UTF-8") +
-                    "&" + URLEncoder.encode("password", "UTF-8") + "=" + URLEncoder.encode(coin, "UTF-8");
+            String data = URLEncoder.encode("email", "UTF-8") + "=" + URLEncoder.encode(email, "UTF-8") +
+                    "&" + URLEncoder.encode("password", "UTF-8") + "=" + URLEncoder.encode(password, "UTF-8");
             bufferedWriter.write(data);
             bufferedWriter.flush();
             bufferedWriter.close();
