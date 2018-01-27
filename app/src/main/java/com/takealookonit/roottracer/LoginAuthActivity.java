@@ -1,8 +1,10 @@
 package com.takealookonit.roottracer;
 
 import android.annotation.SuppressLint;
+import android.content.ContentValues;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.database.sqlite.SQLiteDatabase;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -20,6 +22,7 @@ public class LoginAuthActivity extends AppCompatActivity implements GetUsers.Get
 
     private SharedPreferences sharedPreferences;
     public static final int IS_AUTH_KEY = 121232;
+    public static final int EMAIL = 121;
 
     private EditText mLogin;
     private EditText mPassword;
@@ -49,20 +52,28 @@ public class LoginAuthActivity extends AppCompatActivity implements GetUsers.Get
 
     }
 
-    //Sign up clicked
+    //Sign up
+    String email;
+
     public void signUp(View view) {
-        String email = mLogin.getText().toString();
+        email = mLogin.getText().toString();
         String password = mPassword.getText().toString();
         HttpAddUser addUserDatabase = new HttpAddUser(this);
         addUserDatabase.execute(email, password);
     }
 
+    @SuppressLint("WrongConstant")
     public void signUpResponse(int res) {
         if (res == 1) {
             sharedPreferences = getPreferences(IS_AUTH_KEY);
             SharedPreferences.Editor editor = sharedPreferences.edit();
             editor.putBoolean("isAuth", true);
             editor.apply();
+            EmailDB database = new EmailDB(this);
+            SQLiteDatabase sqLiteDatabase = database.getWritableDatabase();
+            ContentValues values = new ContentValues();
+            values.put("email", email);
+            sqLiteDatabase.insert("ema", null, values);
             Intent intent = new Intent(this, MapsActivity.class);
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             startActivity(intent); //TODO anim
@@ -87,6 +98,11 @@ public class LoginAuthActivity extends AppCompatActivity implements GetUsers.Get
                     SharedPreferences.Editor editor = sharedPreferences.edit();
                     editor.putBoolean("isAuth", true);
                     editor.apply();
+                    EmailDB database = new EmailDB(this);
+                    SQLiteDatabase sqLiteDatabase = database.getWritableDatabase();
+                    ContentValues values = new ContentValues();
+                    values.put("email", email);
+                    sqLiteDatabase.insert("ema", null, values);
                     Intent intent = new Intent(this, MapsActivity.class);
                     intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                     startActivity(intent); // TODO anim
