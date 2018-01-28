@@ -35,7 +35,7 @@ public class HttpAddPoint extends AsyncTask<String, Void, String> {
             String lot = args[2];
             String time = args[3];
             String route = args[4];
-            URL url = new URL("https://sdu.000webhostapp.com/addPoints.php");
+            URL url = new URL("https://zhusupov-74.000webhostapp.com/addPoints.php");
             HttpURLConnection httpURLConnection = (HttpURLConnection) url.openConnection();
             httpURLConnection.setRequestMethod("POST");
             httpURLConnection.setDoOutput(true);

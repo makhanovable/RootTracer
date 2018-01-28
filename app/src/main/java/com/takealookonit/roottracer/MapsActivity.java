@@ -50,6 +50,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private GoogleMap mMap;
     private TextView textView;
+    private TextView averageVelocityText;
 
     private List<LatLng> lines = new ArrayList<>();
     private List<Long> time = new ArrayList<>();
@@ -66,6 +67,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     boolean start = true;
     SharedPreferences sharedPreferences;
 
+    float average_vel = 0;
     String email;
     int route;
 
@@ -95,7 +97,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         startStopButton = findViewById(R.id.start_stop_button);
         startTime = System.nanoTime();
 
-        textView = findViewById(R.id.average_velocity_text);
+        averageVelocityText = findViewById(R.id.average_velocity_text);
     }
 
     private void loadRoutes() {
@@ -139,32 +141,34 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         endTime = System.nanoTime() - startTime;
         startTime = System.nanoTime();
         time.add(endTime);
-
+        averageVelocity();
         HttpAddPoint httpAddPoint = new HttpAddPoint(this); // TODO sent to server
         httpAddPoint.execute(email, latLng.latitude + "", latLng.longitude + "", endTime + "",
                 route + "");
     }
 
-    private void averageVelocity() {
-        double sum = 0;
-        for (int i = 0; i < distance.size(); i++) {
-            long t = time.get(i + 1) - time.get(i);
-            double v = distance.get(i) / (t / 1000);
+    private void averageVelocity(){
+        float sum = 0;
+        for (int i = 0;i<distance.size();i++){
+            long t = Math.abs(time.get(i+1) - time.get(i));
+            double v = distance.get(i) / (t/10000);
             sum += v;
         }
-        textView.setText("Average velocity is: " + (sum / distance.size()));
+        average_vel = sum/distance.size();
+        averageVelocityText.setText("Average velocity is: "+(sum/distance.size()));
     }
 
     //Drawing  lines circles etc on map
     private void drawShapes() {
 
         PolylineOptions path = new PolylineOptions();
-
+        int i = 0;
         for (LatLng latLng : lines) {
             path.add(latLng);
 
             CircleOptions circleOptions = new CircleOptions();
-            circleOptions.center(latLng).radius(20)
+            int plusRad = Math.round(time.get(i)*0.000003f/10000f);
+            circleOptions.center(latLng).radius(15 + plusRad)
                     .fillColor(Color.argb(255, 255, 60, 60));
             Circle circle = mMap.addCircle(circleOptions);
 
@@ -172,18 +176,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         Polyline polyline = mMap.addPolyline(path);
         stylePolyLine(polyline);
 
-        if (lines.size() > 1) {
-            Matrix matrix = new Matrix();
-            int i = lines.size() - 1;
-            double rotDegree = Math.toDegrees(
-                    Math.atan2(lines.get(i).latitude - lines.get(i - 1).latitude,
-                            lines.get(i).longitude - lines.get(i - 1).longitude));
-            matrix.postRotate((float) rotDegree);
-            Bitmap arrowBit = BitmapFactory.decodeResource(getResources(), R.drawable.ic_keyboard_arrow_up_black_18dp_1x);
-            Bitmap arr = Bitmap.createBitmap(arrowBit, 0, 0, 24, 24, matrix, true);
-            Marker marker = mMap.addMarker(new MarkerOptions().position(lines.get(i)).icon(BitmapDescriptorFactory.fromBitmap(arr)));
-
-        }
     }
 
     private void stylePolyLine(Polyline polyline) {
@@ -191,7 +183,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (polyline.getTag() != null) {
             type = polyline.getTag().toString();
         }
-        polyline.setEndCap(new RoundCap());
+        if(average_vel>9){
+            polyline.setColor(Color.argb(255,30,30,255));
+        }else {
+            polyline.setColor(Color.argb(255,30,255,30));
+        }
+        polyline.setEndCap(new CustomCap(BitmapDescriptorFactory
+                .fromResource(R.drawable.ic_keyboard_arrow_up_black_36dp_1x)));
         polyline.setWidth(12);
         polyline.setJointType(JointType.ROUND);
     }
@@ -199,7 +197,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
-        mMap.setMaxZoomPreference(17);
+        mMap.setMaxZoomPreference(20);
     }
 
     public void treckingOnOff(View view) {
@@ -212,7 +210,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             start = true;
             startStopButton.setText("Start");
             locationManager.removeUpdates(locationListener);
-            Toast.makeText(this, "Size of dist:" + distance.size() + " Size of time:" + time.size(), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -272,11 +269,39 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         // TODO
         List<Point> points = pointWrapper.getPoints();
         List<LatLng> latLngs = new ArrayList<>();
+        List<ArrayList<LatLng>> routes = new ArrayList<>();
         for (int i = 0; i < points.size(); i++) {
             if (points.get(i).getEmail().equals(email)) {
-                latLngs.add(new LatLng(Double.parseDouble(points.get(i).getLat()),
+                if (i>0){
+                    if (!points.get(i).getRoute().equals(points.get(i-1).getRoute())){
+                        routes.add(new ArrayList<LatLng>());
+                    }
+                }else {
+                    routes.add(new ArrayList<LatLng>());
+                }
+                routes.get(routes.size() - 1)
+                        .add(new LatLng(Double.parseDouble(points.get(i).getLat()),
                         Double.parseDouble(points.get(i).getLot())));
             }
+        }
+        createShapes(routes);
+    }
+
+    private void createShapes(List<ArrayList<LatLng>> latLngs) {
+        for (ArrayList<LatLng> arrayList: latLngs){
+            PolylineOptions path = new PolylineOptions();
+            for (LatLng latLng : arrayList) {
+                path.add(latLng);
+
+                CircleOptions circleOptions = new CircleOptions();
+                circleOptions.center(latLng).radius(15)
+                        .fillColor(Color.argb(255, 255, 60, 60));
+                Circle circle = mMap.addCircle(circleOptions);
+
+            }
+            Polyline polyline = mMap.addPolyline(path);
+            stylePolyLine(polyline);
+
         }
 
     }

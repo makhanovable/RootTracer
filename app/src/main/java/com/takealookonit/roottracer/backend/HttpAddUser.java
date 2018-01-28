@@ -31,7 +31,7 @@ public class HttpAddUser extends AsyncTask<String, Void, String> {
         try {
             String email = args[0];
             String password = args[1];
-            URL url = new URL("https://sdu.000webhostapp.com/addUser.php");
+            URL url = new URL("https://zhusupov-74.000webhostapp.com/addUser.php");
             HttpURLConnection httpURLConnection = (HttpURLConnection) url.openConnection();
             httpURLConnection.setRequestMethod("POST");
             httpURLConnection.setDoOutput(true);

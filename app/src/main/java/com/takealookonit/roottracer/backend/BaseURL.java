@@ -15,7 +15,7 @@ class BaseURL {
     static API getRetrofit() {
         if (retrofit == null) {
             retrofit = new Retrofit.Builder()
-                    .baseUrl("https://sdu.000webhostapp.com/")
+                    .baseUrl("https://zhusupov-74.000webhostapp.com/")
                     .addConverterFactory(GsonConverterFactory.create())
                     .build();
         }
